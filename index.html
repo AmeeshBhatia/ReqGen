@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ReqGen — AI Requirements Documentation Generator</title>
+<style>
+  :root{
+    --bg:#0f1220;--panel:#171a2b;--panel2:#1e2237;--line:#2a2f4a;--text:#e7e9f3;--muted:#9aa0bd;
+    --accent:#6c8cff;--accent2:#8b5cf6;--green:#37d399;--amber:#f5b544;--red:#ff6b6b;--chip:#242942;
+    --radius:14px;--shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box} html,body{margin:0;padding:0}
+  body{background:linear-gradient(180deg,#0d1020,#0f1220 40%);color:var(--text);
+    font-family:'Segoe UI',system-ui,-apple-system,Roboto,Arial,sans-serif;line-height:1.5}
+  .app{max-width:1180px;margin:0 auto;padding:22px 20px 90px}
+  header.top{display:flex;align-items:center;gap:14px;margin-bottom:8px}
+  .logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;box-shadow:var(--shadow)}
+  .brand h1{font-size:19px;margin:0}.brand p{margin:0;color:var(--muted);font-size:13px}
+  .keystat{margin-left:auto;font-size:12px;padding:6px 12px;border-radius:20px;border:1px solid var(--line);color:var(--muted)}
+  .keystat.ok{color:var(--green);border-color:var(--green)} .keystat.bad{color:var(--red);border-color:var(--red)}
+
+  .banner{background:rgba(255,107,107,.08);border:1px solid rgba(255,107,107,.4);border-radius:12px;
+    padding:14px 16px;margin:14px 0;font-size:13.5px}
+  .banner b{color:#ff9a9a} .banner code{background:#000;padding:1px 6px;border-radius:5px;font-size:12px}
+
+  .stepper{display:flex;gap:8px;margin:16px 0 22px;flex-wrap:wrap}
+  .step{flex:1;min-width:150px;background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:12px 14px;display:flex;gap:10px;align-items:center;cursor:pointer;transition:.15s}
+  .step:hover{border-color:var(--accent)} .step.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+  .step.done .num{background:var(--green);color:#05231a}
+  .step .num{width:26px;height:26px;border-radius:50%;background:var(--chip);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex:0 0 auto}
+  .step.active .num{background:var(--accent);color:#08122e}
+  .step .lbl b{display:block;font-size:13px}.step .lbl span{font-size:11px;color:var(--muted)}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin-bottom:16px}
+  .card h2{margin:0 0 4px;font-size:17px}.card .sub{color:var(--muted);font-size:13px;margin:0 0 16px}
+  .hidden{display:none!important}
+
+  label.field{display:block;font-size:13px;color:var(--muted);margin:0 0 6px}
+  input[type=text],textarea{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);
+    padding:11px 13px;border-radius:10px;font-size:14px;font-family:inherit}
+  input:focus,textarea:focus{outline:none;border-color:var(--accent)}
+  textarea{resize:vertical;min-height:120px}
+
+  .btn{background:var(--accent);color:#08122e;border:none;padding:11px 18px;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;transition:.15s}
+  .btn:hover{filter:brightness(1.08)} .btn.ghost{background:transparent;color:var(--text);border:1px solid var(--line)}
+  .btn.ghost:hover{border-color:var(--accent)} .btn:disabled{opacity:.4;cursor:not-allowed}
+  .btn.sm{padding:7px 12px;font-size:12.5px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.spacer{flex:1}
+
+  .files{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin:6px 0 16px}
+  .file{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;gap:10px;align-items:flex-start}
+  .file .ic{width:34px;height:34px;border-radius:9px;background:var(--chip);display:flex;align-items:center;justify-content:center;font-size:17px;flex:0 0 auto}
+  .file b{font-size:13px;display:block;word-break:break-word}.file span{font-size:11px;color:var(--muted)}
+  .file .rm{margin-left:auto;color:var(--muted);cursor:pointer;background:none;border:none;font-size:16px}
+  .dropzone{border:1.5px dashed var(--line);border-radius:12px;padding:22px;text-align:center;color:var(--muted);font-size:13px;cursor:pointer;transition:.15s}
+  .dropzone.drag{border-color:var(--accent);color:var(--text);background:rgba(108,140,255,.06)}
+
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:16px}
+  .kpi{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .kpi b{font-size:24px;display:block}.kpi span{font-size:12px;color:var(--muted)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:820px){.grid2{grid-template-columns:1fr}.files{grid-template-columns:1fr}}
+  .kb h3{font-size:14px;margin:0 0 10px}.pill{font-size:11px;padding:2px 8px;border-radius:20px;background:var(--chip);color:var(--muted)}
+  ul.clean{list-style:none;margin:0;padding:0}
+  ul.clean li{padding:8px 0;border-bottom:1px solid var(--line);font-size:13.5px}ul.clean li:last-child{border-bottom:none}
+  .tag{font-size:10.5px;padding:2px 7px;border-radius:6px;margin-left:6px}
+  .tag.rule{background:rgba(108,140,255,.15);color:#a9bcff}.tag.risk{background:rgba(255,107,107,.15);color:#ff9a9a}.tag.assume,.tag.assumption{background:rgba(245,181,68,.15);color:#f7cd85}
+  .conflict{background:rgba(255,107,107,.08);border:1px solid rgba(255,107,107,.3);border-radius:10px;padding:12px;margin-bottom:10px;font-size:13px}
+  .conflict b{color:#ff9a9a}
+  .gap{background:rgba(245,181,68,.08);border:1px solid rgba(245,181,68,.3);border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:13px}
+  .conf{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:13.5px}.conf:last-child{border-bottom:none}
+  .conf .name{flex:0 0 220px}.conf .track{flex:1;height:8px;background:var(--panel2);border-radius:8px;overflow:hidden}
+  .conf .track>i{display:block;height:100%}.conf .pct{flex:0 0 44px;text-align:right;font-weight:700;font-size:12px}
+  .conf small{display:block;color:var(--muted);font-size:11px}
+  .tl{position:relative;padding-left:22px;margin-top:6px}
+  .tl::before{content:'';position:absolute;left:6px;top:4px;bottom:4px;width:2px;background:var(--line)}
+  .tl .ev{position:relative;margin-bottom:14px;font-size:13px}
+  .tl .ev::before{content:'';position:absolute;left:-22px;top:4px;width:12px;height:12px;border-radius:50%;background:var(--accent);border:2px solid var(--bg)}
+  .tl .merged{background:rgba(108,140,255,.08);border:1px solid rgba(108,140,255,.3);border-radius:8px;padding:8px 10px;margin-top:6px}
+
+  .genopts{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:16px}
+  .genopt{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px;cursor:pointer;transition:.15s;user-select:none}
+  .genopt:hover{border-color:var(--accent)}.genopt.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+  .genopt .ck{width:20px;height:20px;border-radius:6px;border:2px solid var(--line);float:right;display:flex;align-items:center;justify-content:center;font-size:12px}
+  .genopt.sel .ck{background:var(--accent);border-color:var(--accent);color:#08122e}
+  .genopt b{font-size:14px}.genopt p{margin:6px 0 0;font-size:11.5px;color:var(--muted)}
+
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;border-bottom:1px solid var(--line);padding-bottom:10px}
+  .tab{padding:8px 14px;border-radius:8px;font-size:13px;cursor:pointer;color:var(--muted);background:transparent;border:1px solid transparent}
+  .tab.active{background:var(--panel2);color:var(--text);border-color:var(--line)}
+  .doc{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:22px 24px;font-size:14px;overflow-x:auto}
+  .doc h3{margin:20px 0 6px;font-size:16px;color:#cdd4ff;border-bottom:1px solid var(--line);padding-bottom:6px}.doc h3:first-child{margin-top:0}
+  .doc h4{margin:14px 0 4px;font-size:13.5px;color:var(--muted)}.doc p{margin:6px 0}.doc ul{margin:6px 0;padding-left:20px}.doc li{margin:3px 0}
+  .doc table{width:100%;border-collapse:collapse;font-size:12.5px;margin:8px 0}
+  .doc th,.doc td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top}
+  .doc th{background:var(--chip);color:#cdd4ff;font-weight:600}
+
+  .spin{display:inline-block;width:16px;height:16px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite;vertical-align:-3px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .proc{display:flex;flex-direction:column;gap:8px}
+  .proc .l{font-size:13.5px;color:var(--muted)}
+  .err{background:rgba(255,107,107,.08);border:1px solid rgba(255,107,107,.4);border-radius:10px;padding:12px 14px;font-size:13px;color:#ffb3b3;margin:10px 0}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--green);color:var(--text);padding:12px 20px;border-radius:10px;box-shadow:var(--shadow);z-index:60;font-size:13.5px;opacity:0;transition:.3s;pointer-events:none}
+  .toast.show{opacity:1;bottom:34px}
+  .modal-bg{position:fixed;inset:0;background:rgba(5,7,15,.7);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px}
+  .modal{background:var(--panel);border:1px solid var(--line);border-radius:14px;max-width:680px;width:100%;max-height:82vh;overflow:auto;padding:22px}
+  .modal pre{white-space:pre-wrap;font-family:inherit;font-size:13px;color:var(--muted);background:var(--panel2);padding:14px;border-radius:10px;border:1px solid var(--line)}
+  footer{color:var(--muted);font-size:12px;text-align:center;margin-top:30px}
+  .muted{color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="logo">R</div>
+    <div class="brand"><h1>ReqGen</h1><p>Turn discovery meeting transcripts into complete BA documentation</p></div>
+    <div class="keystat" id="keystat" onclick="openKeyModal()" style="cursor:pointer" title="Set / change API key">checking…</div>
+  </header>
+
+  <div id="keyBanner" class="banner hidden">
+    <b>⚠ No Gemini API key set.</b> Paste your free key here — no file editing needed.
+    <div style="height:10px"></div>
+    <button class="btn sm" onclick="openKeyModal()">⚙ Paste API key</button>
+    <span class="muted" style="font-size:12px;margin-left:8px">Get a free key at aistudio.google.com/apikey</span>
+  </div>
+
+  <div class="stepper" id="stepper">
+    <div class="step" data-step="1"><div class="num">1</div><div class="lbl"><b>Project</b><span>Create &amp; name</span></div></div>
+    <div class="step" data-step="2"><div class="num">2</div><div class="lbl"><b>Upload</b><span>Transcripts &amp; notes</span></div></div>
+    <div class="step" data-step="3"><div class="num">3</div><div class="lbl"><b>Knowledge Base</b><span>AI processing</span></div></div>
+    <div class="step" data-step="4"><div class="num">4</div><div class="lbl"><b>Generate</b><span>BRD, FRD, RTM…</span></div></div>
+  </div>
+
+  <!-- STEP 1 -->
+  <section id="s1">
+    <div class="card">
+      <h2>Create New Project</h2>
+      <p class="sub">A project holds all discovery sessions and generated documents.</p>
+      <label class="field" for="pname">Project Name</label>
+      <input type="text" id="pname" placeholder="e.g. Customer Bank CRM Modernization"/>
+      <div style="height:14px"></div>
+      <label class="field" for="pdomain">Client / Domain (optional)</label>
+      <input type="text" id="pdomain" placeholder="e.g. Retail Banking — Digital Channels"/>
+      <div style="height:18px"></div>
+      <button class="btn" onclick="createProject()">Create project &rarr;</button>
+    </div>
+  </section>
+
+  <!-- STEP 2 -->
+  <section id="s2" class="hidden">
+    <div class="card">
+      <h2>Add discovery inputs</h2>
+      <p class="sub">Upload files or paste text. Supported: .txt .vtt .srt .md .csv .json and .docx .pdf. Add as many as you like.</p>
+      <div class="dropzone" id="drop">⬆ Click to choose files, or drag &amp; drop here<br><span class="muted">Teams/Zoom transcripts (.vtt/.txt), Word (.docx), PDF, notes…</span></div>
+      <input type="file" id="fileInput" multiple class="hidden"
+             accept=".txt,.vtt,.srt,.md,.csv,.json,.log,.docx,.pdf"/>
+      <div style="height:14px"></div>
+      <details>
+        <summary class="muted" style="cursor:pointer;font-size:13px">…or paste a transcript / notes manually</summary>
+        <div style="margin-top:10px">
+          <label class="field">Source name</label>
+          <input type="text" id="pasteName" placeholder="e.g. Discovery Meeting 1"/>
+          <div style="height:8px"></div>
+          <label class="field">Content</label>
+          <textarea id="pasteBody" placeholder="Paste the transcript, workshop notes, email thread, or chat here…"></textarea>
+          <div style="height:8px"></div>
+          <button class="btn ghost sm" onclick="addPaste()">＋ Add pasted source</button>
+        </div>
+      </details>
+      <div style="height:16px"></div>
+      <div class="files" id="filelist"></div>
+      <div class="row">
+        <button class="btn ghost" onclick="go(1)">&larr; Back</button>
+        <div class="spacer"></div>
+        <span class="muted" id="fcount" style="font-size:13px"></span>
+        <button class="btn" id="processBtn" onclick="processKB()">Process into knowledge base &rarr;</button>
+      </div>
+      <div id="s2err"></div>
+    </div>
+  </section>
+
+  <!-- STEP 3 -->
+  <section id="s3" class="hidden">
+    <div class="card" id="procCard">
+      <h2>Building unified knowledge base <span class="spin"></span></h2>
+      <p class="sub">Gemini is reading every source, merging discussions, and resolving contradictions. This can take 10–40 seconds.</p>
+      <div class="proc">
+        <div class="l">• Reading sources &amp; identifying stakeholders…</div>
+        <div class="l">• Grouping requirements &amp; removing duplicates…</div>
+        <div class="l">• Detecting conflicts, extracting rules/risks/assumptions…</div>
+        <div class="l">• Scoring confidence &amp; detecting gaps…</div>
+      </div>
+      <div id="s3err"></div>
+    </div>
+
+    <div id="kbResult" class="hidden">
+      <div class="kpis" id="kpis"></div>
+      <div class="card">
+        <h2>Project Knowledge Base</h2>
+        <p class="sub" id="kbSummary"></p>
+        <div class="grid2">
+          <div class="kb"><h3>👥 Stakeholders <span class="pill" id="shCount"></span></h3><ul class="clean" id="stakeholders"></ul></div>
+          <div class="kb"><h3>🧩 Requirement groups <span class="pill" id="grpCount"></span></h3><ul class="clean" id="groups"></ul></div>
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="card"><h2 style="font-size:15px">⚠ Conflicting requirements</h2><p class="sub">Contradictions found across sessions and how they were resolved.</p><div id="conflicts"></div></div>
+        <div class="card"><h2 style="font-size:15px">🔎 Missing requirement detector</h2><p class="sub">Gaps a BRD needs but no source discussed.</p><div id="gaps"></div></div>
+      </div>
+      <div class="card"><h2 style="font-size:15px">📊 Requirement confidence</h2><p class="sub">How strongly each requirement is supported across sessions.</p><div id="confidence"></div></div>
+      <div class="card"><h2 style="font-size:15px">🕓 Requirement timeline</h2><p class="sub">How one requirement was assembled from multiple sources.</p><div class="tl" id="timeline"></div></div>
+      <div class="card"><div class="row">
+        <button class="btn ghost" onclick="go(2)">&larr; Back / add more</button>
+        <div class="spacer"></div>
+        <button class="btn" onclick="go(4)">Choose documents to generate &rarr;</button>
+      </div></div>
+    </div>
+  </section>
+
+  <!-- STEP 4 -->
+  <section id="s4" class="hidden">
+    <div class="card">
+      <h2>Choose what to generate</h2>
+      <p class="sub">Select one or many. All are generated from the same knowledge base, so they stay consistent.</p>
+      <div class="genopts" id="genopts"></div>
+      <div class="row">
+        <button class="btn ghost" onclick="go(3)">&larr; Back</button>
+        <div class="spacer"></div>
+        <button class="btn" id="genBtn" onclick="generate()">Generate selected documents</button>
+      </div>
+      <div id="s4err"></div>
+    </div>
+
+    <div id="outputs" class="hidden">
+      <div class="card">
+        <div class="row" style="margin-bottom:12px">
+          <b id="genHead">Generated documents</b>
+          <div class="spacer"></div>
+          <button class="btn ghost sm" onclick="exportAll()">⬇ Export all (.html)</button>
+          <button class="btn ghost sm" onclick="copyActive()">⧉ Copy current</button>
+        </div>
+        <div class="tabs" id="outTabs"></div>
+        <div id="docArea"></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>ReqGen — <span id="verFlag">Build …</span> — runs on your machine, powered by your free Google Gemini key. Your transcripts are sent only to Google's Gemini API for processing.</footer>
+</div>
+
+<div id="modalRoot"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const state = { project:{name:'',domain:''}, sources:[], kb:null, generated:{}, model:'', provider:'gemini', providers:{} };
+let step=1, activeTab=null;
+const selected = new Set(['BRD','FRD','US','RTM','TC']);
+const DOC_DEFS=[
+  {id:'BRD',name:'BRD',desc:'Business Requirements Document — objectives, scope, stakeholders, NFRs, risks.'},
+  {id:'FRD',name:'FRD',desc:'Functional Requirements — detailed system behaviour per module.'},
+  {id:'US',name:'User Stories',desc:'Epics, stories & Given/When/Then acceptance criteria.'},
+  {id:'RTM',name:'RTM',desc:'Requirement → Story → Test Case → Status traceability.'},
+  {id:'TC',name:'Test Cases',desc:'Positive, negative, boundary & validation tests.'},
+];
+
+/* ---------- helpers ---------- */
+function esc(s){return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),3000);}
+function showErr(id,msg){document.getElementById(id).innerHTML=`<div class="err">${esc(msg)}</div>`;}
+function clearErr(id){document.getElementById(id).innerHTML='';}
+async function api(path,opts){const r=await fetch(path,opts);const d=await r.json().catch(()=>({error:'Bad server response'}));if(!r.ok)throw new Error(d.error||('Error '+r.status));return d;}
+
+/* ---------- status ---------- */
+async function checkStatus(){
+  try{
+    const d=await api('/api/status');
+    state.model=d.model; state.provider=d.provider||'gemini'; state.providers=d.providers||{};
+    if(d.version){var vf=document.getElementById('verFlag'); if(vf)vf.textContent='Build '+d.version;}
+    const el=document.getElementById('keystat');
+    const label=state.provider==='openrouter'?'OpenRouter':'Gemini';
+    if(d.keySet){el.textContent='✓ '+label+' · '+d.model;el.className='keystat ok';document.getElementById('keyBanner').classList.add('hidden');}
+    else{el.textContent='⚙ Set API key';el.className='keystat bad';document.getElementById('keyBanner').classList.remove('hidden');}
+  }catch(e){document.getElementById('keystat').textContent='server offline';}
+}
+const PROVIDER_INFO={
+  gemini:{name:'Google Gemini',url:'https://aistudio.google.com/apikey',ph:'AIza...',note:'Free, no credit card. Huge context — best for long transcripts.'},
+  openrouter:{name:'OpenRouter',url:'https://openrouter.ai/keys',ph:'sk-or-...',note:'Free tier ~50 requests/day. Pick a model whose ID ends with ":free".'}
+};
+function openKeyModal(){
+  const p=state.provider||'gemini';
+  document.getElementById('modalRoot').innerHTML=`<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <h3>AI provider &amp; key</h3>
+    <label class="field">Provider</label>
+    <select id="provSelect" onchange="onProvChange()" style="width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);padding:11px 13px;border-radius:10px;font-size:14px">
+      <option value="gemini">Google Gemini — free, huge context (recommended)</option>
+      <option value="openrouter">OpenRouter — free tier, many models</option>
+    </select>
+    <p class="muted" id="provNote" style="font-size:12.5px"></p>
+    <label class="field">API key <span id="keyStatusHint" class="muted"></span></label>
+    <input type="text" id="keyInput" placeholder=""/>
+    <div style="height:10px"></div>
+    <label class="field">Model</label>
+    <input type="text" id="modelInput" list="modelOptions" placeholder=""/>
+    <datalist id="modelOptions"></datalist>
+    <div style="height:6px"></div>
+    <button class="btn ghost sm" onclick="loadModels()">↻ Show models my key supports</button>
+    <span id="modelMsg" class="muted" style="font-size:12px;margin-left:8px"></span>
+    <div style="height:12px"></div>
+    <label style="font-size:13px;display:flex;gap:8px;align-items:center;cursor:pointer">
+      <input type="checkbox" id="persistKey" checked/> Also save to <code style="font-size:11px">.env</code> so I don't have to paste it next time
+    </label>
+    <div style="height:16px"></div>
+    <div class="row"><button class="btn" onclick="saveKey()">Save &amp; connect</button>
+    <button class="btn ghost" onclick="closeModal()">Cancel</button></div>
+    <div id="keyMsg"></div>
+  </div></div>`;
+  document.getElementById('provSelect').value=p;
+  onProvChange();
+  setTimeout(()=>document.getElementById('keyInput').focus(),50);
+}
+function onProvChange(){
+  const p=document.getElementById('provSelect').value;
+  const info=PROVIDER_INFO[p];
+  document.getElementById('provNote').innerHTML=info.note+' Get a key at <a href="'+info.url+'" target="_blank" style="color:var(--accent)">'+info.url.replace('https://','')+'</a>.';
+  document.getElementById('keyInput').placeholder=info.ph;
+  const pinfo=(state.providers||{})[p]||{};
+  document.getElementById('keyInput').value=''; // never prefill secrets
+  document.getElementById('keyStatusHint').textContent=pinfo.keySet?'(a key is already saved — leave blank to keep it)':'';
+  document.getElementById('modelInput').value=pinfo.model||'';
+  document.getElementById('modelOptions').innerHTML='';
+  document.getElementById('modelMsg').textContent='';
+}
+async function loadModels(){
+  const p=document.getElementById('provSelect').value;
+  const msg=document.getElementById('modelMsg');
+  const apiKey=document.getElementById('keyInput').value.trim();
+  msg.textContent='loading…';
+  try{
+    // ensure the server has this provider's key before listing
+    await api('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({provider:p,...(apiKey?{apiKey}:{})})});
+    const d=await api('/api/models?provider='+encodeURIComponent(p));
+    const dl=document.getElementById('modelOptions');
+    dl.innerHTML=(d.models||[]).map(m=>`<option value="${esc(m)}">`).join('');
+    if(d.models&&d.models.length){
+      msg.textContent=d.models.length+' models — click the box to pick one';
+      const inp=document.getElementById('modelInput'); if(!inp.value)inp.value=d.models[0];
+    } else msg.textContent='No usable models found for this key.';
+  }catch(e){msg.textContent=e.message;}
+}
+async function saveKey(){
+  const provider=document.getElementById('provSelect').value;
+  const apiKey=document.getElementById('keyInput').value.trim();
+  const model=document.getElementById('modelInput').value.trim();
+  const persist=document.getElementById('persistKey').checked;
+  const alreadyHasKey=((state.providers||{})[provider]||{}).keySet;
+  if(!apiKey && !alreadyHasKey){document.getElementById('keyMsg').innerHTML='<div class="err">Please paste your '+PROVIDER_INFO[provider].name+' key.</div>';return;}
+  try{
+    const d=await api('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({provider,...(apiKey?{apiKey}:{}),model,persist})});
+    state.model=d.model; state.provider=d.provider; state.providers=d.providers||{};
+    closeModal();await checkStatus();
+    toast(d.persisted?('Saved & connected to '+PROVIDER_INFO[provider].name+' (written to .env).'):('Connected to '+PROVIDER_INFO[provider].name+' for this session.'));
+  }catch(e){document.getElementById('keyMsg').innerHTML='<div class="err">'+esc(e.message)+'</div>';}
+}
+
+/* ---------- nav ---------- */
+function go(n){
+  step=n;
+  for(let i=1;i<=4;i++)document.getElementById('s'+i).classList.toggle('hidden',i!==n);
+  document.querySelectorAll('.step').forEach(el=>{const s=+el.dataset.step;el.classList.toggle('active',s===n);el.classList.toggle('done',s<n);});
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(n===4)renderGenOpts();
+}
+document.querySelectorAll('.step').forEach(el=>el.onclick=()=>{const s=+el.dataset.step;if(s<=step)go(s);});
+
+/* ---------- step 1 ---------- */
+function createProject(){
+  const name=document.getElementById('pname').value.trim();
+  if(!name){toast('Please enter a project name.');return;}
+  state.project={name,domain:document.getElementById('pdomain').value.trim()};
+  go(2);
+}
+
+/* ---------- step 2: sources ---------- */
+const iconFor=n=>{const e=(n.split('.').pop()||'').toLowerCase();return e==='pdf'?'📕':e==='docx'?'📘':e==='vtt'||e==='srt'?'🎬':e==='csv'||e==='json'?'📊':e==='txt'||e==='md'?'📄':'💬';};
+function renderSources(){
+  const list=document.getElementById('filelist');list.innerHTML='';
+  state.sources.forEach((s,i)=>{
+    const d=document.createElement('div');d.className='file';
+    d.innerHTML=`<div class="ic">${iconFor(s.name)}</div>
+      <div style="flex:1;cursor:pointer" onclick="viewSource(${i})"><b>${esc(s.name)}</b>
+      <span>${s.error?('⚠ '+esc(s.error)):(s.content.length.toLocaleString()+' chars')}</span></div>
+      <button class="rm" title="remove" onclick="event.stopPropagation();removeSource(${i})">×</button>`;
+    list.appendChild(d);
+  });
+  document.getElementById('fcount').textContent=state.sources.length?(state.sources.length+' source'+(state.sources.length>1?'s':'')+' ready'):'No sources yet';
+  document.getElementById('processBtn').disabled=state.sources.filter(s=>s.content&&s.content.length).length===0;
+}
+function removeSource(i){state.sources.splice(i,1);renderSources();}
+function viewSource(i){const s=state.sources[i];
+  document.getElementById('modalRoot').innerHTML=`<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <h3>${esc(s.name)}</h3><p class="muted" style="font-size:12px;margin-top:0">${s.content.length.toLocaleString()} characters</p>
+    <pre>${esc(s.content.slice(0,20000))}${s.content.length>20000?'\n…(truncated in preview)':''}</pre>
+    <div style="height:12px"></div><button class="btn" onclick="closeModal()">Close</button></div></div>`;}
+function closeModal(){document.getElementById('modalRoot').innerHTML='';}
+function addPaste(){
+  const name=(document.getElementById('pasteName').value.trim())||('Pasted source '+(state.sources.length+1));
+  const body=document.getElementById('pasteBody').value.trim();
+  if(!body){toast('Paste some content first.');return;}
+  state.sources.push({name,content:body});
+  document.getElementById('pasteName').value='';document.getElementById('pasteBody').value='';
+  renderSources();toast('Source added.');
+}
+async function handleFiles(fileList){
+  const files=[...fileList];if(!files.length)return;
+  clearErr('s2err');
+  const fd=new FormData();files.forEach(f=>fd.append('files',f));
+  const dz=document.getElementById('drop');const orig=dz.innerHTML;dz.innerHTML='<span class="spin"></span> Extracting text from '+files.length+' file(s)…';
+  try{
+    const d=await api('/api/extract',{method:'POST',body:fd});
+    d.files.forEach(f=>state.sources.push(f));
+    renderSources();toast('Added '+d.files.length+' file(s).');
+  }catch(e){showErr('s2err',e.message);}
+  finally{dz.innerHTML=orig;}
+}
+const drop=document.getElementById('drop'),fileInput=document.getElementById('fileInput');
+drop.onclick=()=>fileInput.click();
+fileInput.onchange=()=>{handleFiles(fileInput.files);fileInput.value='';};
+;['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('drag');}));
+;['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('drag');}));
+drop.addEventListener('drop',e=>handleFiles(e.dataTransfer.files));
+
+/* ---------- step 3: process ---------- */
+async function processKB(){
+  const valid=state.sources.filter(s=>s.content&&s.content.length);
+  if(!valid.length){toast('Add at least one readable source.');return;}
+  go(3);
+  document.getElementById('procCard').classList.remove('hidden');
+  document.getElementById('kbResult').classList.add('hidden');
+  clearErr('s3err');
+  try{
+    const d=await api('/api/process',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({project:state.project,sources:valid,model:state.model,provider:state.provider})});
+    state.kb=d.kb;renderKB();
+    document.getElementById('procCard').classList.add('hidden');
+    document.getElementById('kbResult').classList.remove('hidden');
+  }catch(e){
+    document.querySelector('#procCard h2').innerHTML='Processing failed';
+    showErr('s3err',e.message+'  —  Fix the issue and click Back to retry.');
+  }
+}
+function renderKB(){
+  const kb=state.kb||{};
+  const reqs=kb.requirements||[];
+  document.getElementById('kbSummary').textContent=kb.projectSummary||'';
+  document.getElementById('kpis').innerHTML=[
+    [state.sources.filter(s=>s.content).length,'Sources merged'],
+    [reqs.length,'Requirements'],
+    [(kb.groups||[]).length,'Groups'],
+    [(kb.conflicts||[]).length,'Conflicts'],
+    [(kb.gaps||[]).length,'Gaps'],
+    [(kb.stakeholders||[]).length,'Stakeholders']
+  ].map(k=>`<div class="kpi"><b>${k[0]}</b><span>${k[1]}</span></div>`).join('');
+
+  document.getElementById('stakeholders').innerHTML=(kb.stakeholders||[]).map(s=>`<li><b>${esc(s.name)}</b> — <span class="muted">${esc(s.role)}</span></li>`).join('')||'<li class="muted">None found</li>';
+  document.getElementById('shCount').textContent=(kb.stakeholders||[]).length;
+
+  document.getElementById('groups').innerHTML=(kb.groups||[]).map(g=>{
+    const tags=(g.tags||[]).map(t=>`<span class="tag ${String(t).toLowerCase().replace(/[^a-z]/g,'')}">${esc(t)}</span>`).join('');
+    return `<li><b>${esc(g.name)}</b> <span class="muted" style="font-size:12px">· ${esc(g.count)} reqs</span>${tags}</li>`;
+  }).join('')||'<li class="muted">None</li>';
+  document.getElementById('grpCount').textContent=(kb.groups||[]).length;
+
+  document.getElementById('conflicts').innerHTML=(kb.conflicts||[]).map(c=>
+    `<div class="conflict"><b>⚠ ${esc(c.topic)}</b><br>${(c.positions||[]).map(p=>'• '+esc(p)).join('<br>')}<br><span style="color:var(--green)">→ ${esc(c.resolution)}</span></div>`
+  ).join('')||'<p class="muted" style="font-size:13px">No conflicts detected.</p>';
+
+  document.getElementById('gaps').innerHTML=(kb.gaps||[]).map(g=>`<div class="gap">🔸 ${esc(g)}</div>`).join('')||'<p class="muted" style="font-size:13px">No obvious gaps detected.</p>';
+
+  const sorted=[...reqs].sort((a,b)=>(b.confidence||0)-(a.confidence||0));
+  document.getElementById('confidence').innerHTML=sorted.map(c=>{
+    const v=Math.max(0,Math.min(100,c.confidence||0));
+    const col=v>=80?'var(--green)':v>=50?'var(--amber)':'var(--red)';
+    return `<div class="conf"><div class="name">${esc(c.title||c.id)}<small>${esc(c.confidenceReason||'')}</small></div><div class="track"><i style="width:${v}%;background:${col}"></i></div><div class="pct" style="color:${col}">${v}%</div></div>`;
+  }).join('')||'<p class="muted" style="font-size:13px">No requirements.</p>';
+
+  const tl=kb.timelineExample;
+  document.getElementById('timeline').innerHTML=tl?
+    (`<div class="ev muted" style="margin-bottom:14px">Requirement: <b style="color:#cdd4ff">${esc(tl.requirement)}</b></div>`+
+     (tl.events||[]).map(e=>`<div class="ev"><b>${esc(e.source)}:</b> ${esc(e.note)}</div>`).join('')+
+     `<div class="ev"><b>AI merge →</b><div class="merged">${esc(tl.merged)}</div></div>`)
+    :'<p class="muted" style="font-size:13px">No timeline example.</p>';
+}
+
+/* ---------- step 4: generate ---------- */
+function renderGenOpts(){
+  document.getElementById('genopts').innerHTML=DOC_DEFS.map(d=>
+    `<div class="genopt ${selected.has(d.id)?'sel':''}" onclick="toggleGen('${d.id}')"><div class="ck">✓</div><b>${d.name}</b><p>${d.desc}</p></div>`).join('');
+  document.getElementById('genBtn').disabled=selected.size===0;
+}
+function toggleGen(id){selected.has(id)?selected.delete(id):selected.add(id);renderGenOpts();}
+async function generate(){
+  if(!state.kb){toast('Process the knowledge base first.');return;}
+  if(selected.size===0)return;
+  clearErr('s4err');
+  const btn=document.getElementById('genBtn');const orig=btn.innerHTML;
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Generating '+selected.size+' document(s)…';
+  try{
+    const d=await api('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({project:state.project,kb:state.kb,docs:[...selected],model:state.model,provider:state.provider})});
+    state.generated=d.docs||{};
+    const errs=d.errors||{};
+    if(Object.keys(errs).length)showErr('s4err','Some documents failed: '+Object.entries(errs).map(([k,v])=>k+' ('+v+')').join('; '));
+    document.getElementById('outputs').classList.remove('hidden');
+    activeTab=[...selected].find(id=>state.generated[id])||[...selected][0];
+    buildTabs();
+    document.getElementById('genHead').textContent='Generated '+Object.keys(state.generated).length+' document(s) · '+new Date().toLocaleString();
+    window.scrollTo({top:document.getElementById('outputs').offsetTop-20,behavior:'smooth'});
+    toast('Done.');
+  }catch(e){showErr('s4err',e.message);}
+  finally{btn.disabled=false;btn.innerHTML=orig;}
+}
+function buildTabs(){
+  const order=DOC_DEFS.filter(d=>selected.has(d.id));
+  if(!activeTab||!selected.has(activeTab))activeTab=order[0]?.id;
+  document.getElementById('outTabs').innerHTML=order.map(d=>
+    `<div class="tab ${d.id===activeTab?'active':''}" onclick="activeTab='${d.id}';buildTabs()">${d.name}${state.generated[d.id]?'':' ⚠'}</div>`).join('');
+  const html=state.generated[activeTab];
+  document.getElementById('docArea').innerHTML=html?`<div class="doc" id="docBody">${html}</div>`:'<div class="err">This document was not generated. Try again.</div>';
+}
+function copyActive(){
+  const el=document.getElementById('docBody');if(!el){toast('Nothing to copy.');return;}
+  const range=document.createRange();range.selectNode(el);const sel=window.getSelection();sel.removeAllRanges();sel.addRange(range);
+  try{document.execCommand('copy');toast('Copied — paste into Word/Docs.');}catch(e){toast('Copy failed.');}
+  sel.removeAllRanges();
+}
+function exportAll(){
+  const order=DOC_DEFS.filter(d=>selected.has(d.id)&&state.generated[d.id]);
+  if(!order.length){toast('Nothing to export.');return;}
+  const body=order.map(d=>`<section><h1>${d.name}</h1>${state.generated[d.id]}</section>`).join('<hr>');
+  const doc=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(state.project.name)} — BA Documentation</title>
+  <style>body{font-family:Segoe UI,Arial,sans-serif;max-width:900px;margin:40px auto;padding:0 20px;color:#111;line-height:1.5}
+  h1{border-bottom:2px solid #444;padding-bottom:6px;margin-top:40px}h3{color:#234;border-bottom:1px solid #ccc;padding-bottom:4px}
+  table{width:100%;border-collapse:collapse;margin:10px 0}th,td{border:1px solid #bbb;padding:7px 9px;text-align:left;vertical-align:top}th{background:#eef}
+  hr{margin:40px 0;border:none;border-top:1px dashed #bbb}</style></head>
+  <body><h1 style="border:none">${esc(state.project.name)}</h1><p><i>${esc(state.project.domain)}</i> · Generated by ReqGen · ${new Date().toLocaleString()}</p>${body}</body></html>`;
+  const blob=new Blob([doc],{type:'text/html'});const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);a.download=(state.project.name||'BA-documentation').replace(/[^\w\-]+/g,'_')+'.html';
+  document.body.appendChild(a);a.click();a.remove();toast('Exported. Open the .html in Word to save as .docx.');
+}
+
+/* init */
+checkStatus();renderSources();go(1);
+</script>
+</body>
+</html>
