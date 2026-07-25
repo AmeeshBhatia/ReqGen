@@ -316,11 +316,10 @@ ${JSON.stringify(kb, null, 2)}`;
 
     const results = {};
     const errors = {};
-    // Sequential (not all-at-once) so we stay under the free-tier per-minute limit.
-    for (let i = 0; i < docs.length; i++) {
-      const id = docs[i];
+    // Generate all requested documents IN PARALLEL for speed (was sequential before).
+    await Promise.all(docs.map(async (id) => {
       const spec = DOC_PROMPTS[id];
-      if (!spec) { errors[id] = 'Unknown document type'; continue; }
+      if (!spec) { errors[id] = 'Unknown document type'; return; }
       const prompt =
 `You are an expert Business Analyst. Using ONLY the knowledge base below, ${spec}
 
@@ -337,8 +336,7 @@ Output requirements:
       } catch (e) {
         errors[id] = e.message;
       }
-      if (i < docs.length - 1) await new Promise(r => setTimeout(r, 1500)); // small gap between calls
-    }
+    }));
     res.json({ docs: results, errors });
   } catch (e) {
     res.status(e.code === 'NO_KEY' ? 400 : 500).json({ error: e.message });
