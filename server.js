@@ -20,7 +20,7 @@ const PORT = parseInt(process.env.PORT, 10) || 4545;
 /* ---------- Provider config (Gemini + OpenRouter) ---------- */
 const DEFAULTS = {
   gemini: process.env.GEMINI_MODEL || 'gemini-2.0-flash-lite',
-  openrouter: process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.3-70b-instruct:free'
+  openrouter: process.env.OPENROUTER_MODEL || 'nvidia/nemotron-3-ultra-550b-a55b:free'
 };
 const CFG = {
   provider: (process.env.LLM_PROVIDER || 'gemini').trim(),
@@ -84,11 +84,13 @@ async function callGemini(prompt, { json, key, model }) {
 
 async function callOpenRouter(prompt, { json, key, model }) {
   const url = 'https://openrouter.ai/api/v1/chat/completions';
+  // Note: we do NOT force response_format json — many free models don't support it and
+  // return empty content. We ask for JSON in the prompt and parse leniently instead.
   const body = {
     model,
-    messages: [{ role: 'user', content: prompt }],
+    messages: [{ role: 'user', content: prompt + (json ? '\n\nReturn ONLY the JSON object, nothing else.' : '') }],
     temperature: json ? 0.2 : 0.35,
-    ...(json ? { response_format: { type: 'json_object' } } : {})
+    max_tokens: 16000
   };
   const MAX = 4;
   for (let attempt = 0; attempt <= MAX; attempt++) {
@@ -117,8 +119,15 @@ async function callOpenRouter(prompt, { json, key, model }) {
       const err = new Error(msg); err.status = r.status; throw err;
     }
     const d = await r.json();
-    const content = d.choices?.[0]?.message?.content;
-    if (!content) throw new Error('OpenRouter returned no content. Try another free model in ⚙.');
+    const msg = d.choices?.[0]?.message || {};
+    let content = msg.content;
+    if (Array.isArray(content)) content = content.map(c => (typeof c === 'string' ? c : (c.text || c.content || ''))).join('');
+    if (!content || !content.trim()) content = msg.reasoning || ''; // reasoning models put text here
+    const finish = d.choices?.[0]?.finish_reason;
+    if (!content || !content.trim()) {
+      if (finish === 'length') throw new Error('The model ran out of output space before answering (a "reasoning" model). Pick a lighter free model in ⚙ (e.g. poolside/laguna-m.1:free or tencent/hy3:free).');
+      throw new Error('OpenRouter returned no usable text for this model. Try another free model in ⚙, or switch provider to Gemini.');
+    }
     return content;
   }
   throw new Error('OpenRouter rate limit persisted after retries.');
@@ -163,11 +172,14 @@ app.get('/api/models', async (req, res) => {
       if (!r.ok) return res.status(r.status).json({ error: d.error?.message || 'Could not list OpenRouter models.' });
       const free = (d.data || [])
         .filter(m => { const p = m.pricing || {}; return (parseFloat(p.prompt) === 0 && parseFloat(p.completion) === 0) || /:free$/.test(m.id); })
-        .map(m => m.id).sort();
-      // Put a few reliable large-context picks first if present.
-      const pref = ['meta-llama/llama-3.3-70b-instruct:free', 'qwen/qwen-2.5-72b-instruct:free', 'google/gemini-2.0-flash-exp:free'];
-      const ordered = [...pref.filter(p => free.includes(p)), ...free.filter(f => !pref.includes(f))];
-      return res.json({ models: ordered });
+        .map(m => m.id)
+        // hide non-chat / specialist models that make poor doc writers
+        .filter(id => !/(content-safety|guard|moderation|-code$|-code:|coder|embed|vision|image|tts|whisper)/i.test(id))
+        .sort();
+      // Put capable general models first if present (list rotates, so this is best-effort).
+      const pref = free.filter(id => /nemotron-3-ultra|nemotron.*reasoning|llama-3\.3-70b|qwen.*72b|deepseek/i.test(id));
+      const ordered = [...pref, ...free.filter(f => !pref.includes(f))];
+      return res.json({ models: ordered.length ? ordered : free });
     }
 
     const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}`);
@@ -356,4 +368,8 @@ function start(port, attemptsLeft) {
     }
   });
 }
-start(PORT, 10);
+// Run a normal server locally; on Vercel/serverless just export the app.
+if (require.main === module) {
+  start(PORT, 10);
+}
+module.exports = app;
