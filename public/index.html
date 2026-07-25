@@ -186,7 +186,7 @@
   <section id="s3" class="hidden">
     <div class="card" id="procCard">
       <h2>Building unified knowledge base <span class="spin"></span></h2>
-      <p class="sub">Gemini is reading every source, merging discussions, and resolving contradictions. This can take 10–40 seconds.</p>
+      <p class="sub" id="procSub">The AI is reading every source, merging discussions, and resolving contradictions. This can take 2–3 minutes.</p>
       <div class="proc">
         <div class="l">• Reading sources &amp; identifying stakeholders…</div>
         <div class="l">• Grouping requirements &amp; removing duplicates…</div>
@@ -248,7 +248,7 @@
     </div>
   </section>
 
-  <footer>ReqGen — <span id="verFlag">Build …</span> — runs on your machine, powered by your free Google Gemini key. Your transcripts are sent only to Google's Gemini API for processing.</footer>
+  <footer>ReqGen — <span id="verFlag">Build …</span> — powered by your chosen AI provider (Gemini or OpenRouter). Your transcripts are sent only to the selected provider for processing.</footer>
 </div>
 
 <div id="modalRoot"></div>
@@ -281,6 +281,7 @@ async function checkStatus(){
     if(d.version){var vf=document.getElementById('verFlag'); if(vf)vf.textContent='Build '+d.version;}
     const el=document.getElementById('keystat');
     const label=state.provider==='openrouter'?'OpenRouter':'Gemini';
+    var ps=document.getElementById('procSub'); if(ps)ps.textContent=label+' is reading every source, merging discussions, and resolving contradictions. This can take 2–3 minutes.';
     if(d.keySet){el.textContent='✓ '+label+' · '+d.model;el.className='keystat ok';document.getElementById('keyBanner').classList.add('hidden');}
     else{el.textContent='⚙ Set API key';el.className='keystat bad';document.getElementById('keyBanner').classList.remove('hidden');}
   }catch(e){document.getElementById('keystat').textContent='server offline';}
